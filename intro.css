@@ -1,0 +1,29 @@
+/*
+ * intro.css — CrackAI v14.0 "NEURAL INK"
+ * All visual styles injected by intro.js.
+ * This file = hard safety rules only.
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  #sscIntroOverlay { display: none !important; }
+}
+
+#sscIntroOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  overflow: hidden;
+  will-change: opacity;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  touch-action: none;
+}
+
+#ni-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  height: -webkit-fill-available !important;
+  display: block;
+}
