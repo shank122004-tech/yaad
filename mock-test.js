@@ -88,6 +88,74 @@ const MockTestModule = (function() {
   };
 
   /**
+   * Convert letter answer to index
+   * A → 0, B → 1, C → 2, D → 3
+   */
+  const _convertAnswerToIndex = (answer) => {
+    if (typeof answer === 'string') {
+      const upper = answer.toUpperCase().trim();
+      if (upper === 'A') return 0;
+      if (upper === 'B') return 1;
+      if (upper === 'C') return 2;
+      if (upper === 'D') return 3;
+    }
+    return -1;
+  };
+
+  /**
+   * Normalize a single question object
+   * Ensures answerIndex exists, converting from answer if needed
+   */
+  const _normalizeQuestion = (q) => {
+    // If answerIndex already exists and is valid, keep it
+    if (typeof q.answerIndex === 'number' && q.answerIndex >= 0 && q.answerIndex <= 3) {
+      return q;
+    }
+    
+    // If answer exists as letter, convert it
+    if (q.answer !== undefined && q.answer !== null) {
+      const converted = _convertAnswerToIndex(q.answer);
+      if (converted >= 0 && converted <= 3) {
+        q.answerIndex = converted;
+        return q;
+      }
+    }
+    
+    // If answerIndex is invalid but answer is numeric, use it directly
+    if (typeof q.answer === 'number' && q.answer >= 0 && q.answer <= 3) {
+      q.answerIndex = q.answer;
+      return q;
+    }
+    
+    // If answerIndex is a string number, parse it
+    if (typeof q.answerIndex === 'string') {
+      const parsed = parseInt(q.answerIndex, 10);
+      if (!isNaN(parsed) && parsed >= 0 && parsed <= 3) {
+        q.answerIndex = parsed;
+        return q;
+      }
+    }
+    
+    // If answer is a string number, parse it
+    if (typeof q.answer === 'string') {
+      const parsed = parseInt(q.answer, 10);
+      if (!isNaN(parsed) && parsed >= 0 && parsed <= 3) {
+        q.answerIndex = parsed;
+        return q;
+      }
+    }
+    
+    // If answer is numeric, use it
+    if (typeof q.answer === 'number' && q.answer >= 0 && q.answer <= 3) {
+      q.answerIndex = q.answer;
+      return q;
+    }
+    
+    // No valid answer found
+    return null;
+  };
+
+  /**
    * Load mock test questions from Firebase Storage
    * Path: mock/{examType}/questions.json
    */
@@ -103,6 +171,7 @@ const MockTestModule = (function() {
 
       // Check cache first
       if (questionCache[examType]) {
+        state.isLoading = false;
         return questionCache[examType];
       }
 
@@ -115,8 +184,8 @@ const MockTestModule = (function() {
       
       // Fetch the JSON file
       const response = await fetch(url, {
-    cache: 'no-cache'
-});
+        cache: 'no-cache'
+      });
 
       if (!response.ok) {
         throw new Error(`Failed to load questions: HTTP ${response.status}`);
@@ -129,14 +198,32 @@ const MockTestModule = (function() {
         questions = [questions];
       }
 
-      // Validate and normalize questions
-      questions = questions.filter(q => q && q.question && q.options && typeof q.answerIndex !== 'undefined');
+      // Normalize each question - convert answer to answerIndex if needed
+      const normalizedQuestions = [];
+      for (const q of questions) {
+        const normalized = _normalizeQuestion(q);
+        if (normalized) {
+          normalizedQuestions.push(normalized);
+        }
+      }
+
+      // Validate and filter questions
+      const validatedQuestions = normalizedQuestions.filter(q => 
+        q && 
+        q.question && 
+        q.options && 
+        Array.isArray(q.options) && 
+        q.options.length > 0 &&
+        typeof q.answerIndex !== 'undefined' && 
+        q.answerIndex >= 0 && 
+        q.answerIndex < q.options.length
+      );
 
       // Cache the questions
-      questionCache[examType] = questions;
+      questionCache[examType] = validatedQuestions;
 
       state.isLoading = false;
-      return questions;
+      return validatedQuestions;
 
     } catch (error) {
       state.isLoading = false;
