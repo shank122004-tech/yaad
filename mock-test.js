@@ -104,26 +104,14 @@ const MockTestModule = (function() {
 
   /**
    * Normalize a single question object
-   * Ensures answerIndex exists, converting from answer if needed
+   * Supports three formats:
+   * 1. "answerIndex": 2 (numeric)
+   * 2. "answer": "C" (letter)
+   * 3. "answer": "Qutbuddin Aibak" (full option text)
    */
   const _normalizeQuestion = (q) => {
     // If answerIndex already exists and is valid, keep it
     if (typeof q.answerIndex === 'number' && q.answerIndex >= 0 && q.answerIndex <= 3) {
-      return q;
-    }
-    
-    // If answer exists as letter, convert it
-    if (q.answer !== undefined && q.answer !== null) {
-      const converted = _convertAnswerToIndex(q.answer);
-      if (converted >= 0 && converted <= 3) {
-        q.answerIndex = converted;
-        return q;
-      }
-    }
-    
-    // If answerIndex is invalid but answer is numeric, use it directly
-    if (typeof q.answer === 'number' && q.answer >= 0 && q.answer <= 3) {
-      q.answerIndex = q.answer;
       return q;
     }
     
@@ -136,19 +124,47 @@ const MockTestModule = (function() {
       }
     }
     
-    // If answer is a string number, parse it
-    if (typeof q.answer === 'string') {
-      const parsed = parseInt(q.answer, 10);
-      if (!isNaN(parsed) && parsed >= 0 && parsed <= 3) {
-        q.answerIndex = parsed;
+    // If answer exists, try to convert it
+    if (q.answer !== undefined && q.answer !== null) {
+      // First try: letter format (A, B, C, D)
+      const letterIndex = _convertAnswerToIndex(q.answer);
+      if (letterIndex >= 0 && letterIndex <= 3) {
+        q.answerIndex = letterIndex;
         return q;
       }
-    }
-    
-    // If answer is numeric, use it
-    if (typeof q.answer === 'number' && q.answer >= 0 && q.answer <= 3) {
-      q.answerIndex = q.answer;
-      return q;
+      
+      // Second try: numeric string
+      if (typeof q.answer === 'string') {
+        const parsed = parseInt(q.answer, 10);
+        if (!isNaN(parsed) && parsed >= 0 && parsed <= 3) {
+          q.answerIndex = parsed;
+          return q;
+        }
+      }
+      
+      // Third try: numeric value
+      if (typeof q.answer === 'number' && q.answer >= 0 && q.answer <= 3) {
+        q.answerIndex = q.answer;
+        return q;
+      }
+      
+      // Fourth try: full option text match
+      if (q.options && Array.isArray(q.options) && q.options.length > 0) {
+        const answerText = String(q.answer).trim();
+        const exactMatchIndex = q.options.findIndex(opt => String(opt).trim() === answerText);
+        if (exactMatchIndex !== -1) {
+          q.answerIndex = exactMatchIndex;
+          return q;
+        }
+        
+        // Case-insensitive match
+        const lowerAnswer = answerText.toLowerCase();
+        const caseInsensitiveMatchIndex = q.options.findIndex(opt => String(opt).trim().toLowerCase() === lowerAnswer);
+        if (caseInsensitiveMatchIndex !== -1) {
+          q.answerIndex = caseInsensitiveMatchIndex;
+          return q;
+        }
+      }
     }
     
     // No valid answer found
