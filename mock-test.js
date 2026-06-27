@@ -115,9 +115,8 @@ const MockTestModule = (function() {
       
       // Fetch the JSON file
       const response = await fetch(url, {
-        cache: 'no-cache',
-        headers: { 'pragma': 'no-cache' }
-      });
+    cache: 'no-cache'
+});
 
       if (!response.ok) {
         throw new Error(`Failed to load questions: HTTP ${response.status}`);
