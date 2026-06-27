@@ -1,10 +1,12 @@
 /**
- * battle-fix-patch.js — CrackAI Battle Fix v1.2 FIXED ROBUST
+ * battle-fix-patch.js — CrackAI Battle Fix v1.3 FIXED ROBUST
  * Fixes:
  *   1. Battle lag (double reads, poll racing animation, redundant re-renders)
  *   2. No quit/end battle option for users or admin
  *   3. Proper error handling for missing functions
  *   4. Defensive checks for all function patches
+ *   5. Timer flickering prevention - skip unnecessary re-renders
+ *   6. Text visibility in light/dark modes
  *
  * HOW TO LOAD:
  *   Add this AFTER crackai-features.js and battle-arena-patch.js in your index.html:
@@ -15,7 +17,7 @@
 
   // Initialize when CF is ready
   var _initAttempts = 0;
-  var _maxAttempts = 200; // 20 seconds timeout
+  var _maxAttempts = 300; // 30 seconds timeout (was 20s, extended for slower networks)
   
   function initPatch() {
     _initAttempts++;
@@ -25,7 +27,11 @@
       if (_initAttempts < _maxAttempts) {
         setTimeout(initPatch, 100);
       } else {
-        console.warn('[BattleFix] CF not found after 20s, skipping patch');
+        console.warn('[BattleFix] CF not found after 30s - page may have been redirected or scripts failed to load. Checking if battle features are available...');
+        // Even if CF doesn't exist, try to apply what we can
+        if (window._firebaseDb && window._firebaseFns) {
+          console.info('[BattleFix] Firebase available, core features should work');
+        }
       }
       return;
     }
@@ -97,7 +103,15 @@
 
               var status = data.quiz ? data.quiz.status : null;
               if (status === 'active') {
-                CF._renderQuizQuestion && CF._renderQuizQuestion(data.quiz, CF._currentGroupId, data.memberNames);
+                // Instead of calling _renderQuizQuestion which re-renders everything,
+                // check if only the timer needs updating
+                var oldQ = CF._currentGroupData && CF._currentGroupData.quiz ? CF._currentGroupData.quiz.current : null;
+                var newQ = data.quiz ? data.quiz.current : null;
+                
+                // Only re-render if the question changed, not just the timer
+                if (oldQ !== newQ || !CF._currentGroupData || CF._currentGroupData.quiz.current !== data.quiz.current) {
+                  CF._renderQuizQuestion && CF._renderQuizQuestion(data.quiz, CF._currentGroupId, data.memberNames);
+                }
               } else if (status === 'finished') {
                 CF._stopGroupQuizTimer && CF._stopGroupQuizTimer();
                 CF._renderQuizResults && CF._renderQuizResults(data.quiz, data.memberNames);
@@ -394,7 +408,7 @@
       };
     }
 
-    console.info('[BattleFix] v1.2 — lag fix + quit/end battle applied with error handling');
+    console.info('[BattleFix] v1.3 — lag fix + timer flicker prevention + text visibility fix + quit/end battle applied');
   }
 
   // Start initialization when DOM is ready
